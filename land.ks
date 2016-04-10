@@ -50,8 +50,8 @@ RCS OFF.
 LOCK radar TO terrainHeight().
 SET radarOffset TO 8.
 SET launchPad TO LATLNG(-0.0972077635067718, -74.5576726244574).
-LOCK targetDist TO geoDistance(launchPad, geoImpact()).
-LOCK targetDir TO geoDir(geoImpact(), launchPad).
+LOCK targetDist TO geoDistance(launchPad, ADDONS:TR:IMPACTPOS).
+LOCK targetDir TO geoDir(ADDONS:TR:IMPACTPOS, launchPad).
 SET cardVelCached TO cardVel().
 SET targetDistOld TO 0.
 //g in m/s^2 at sea level.
@@ -160,8 +160,8 @@ UNTIL stopLoop = true { //Main loop
 	if runMode = 4 { //Glide rocket back to launch pad.
 		SET shipProVec TO (SHIP:VELOCITY:SURFACE * -1):NORMALIZED.
 		if SHIP:VERTICALSPEED < -10 {
-			SET launchPadVect TO (launchPad:POSITION - geoImpact():POSITION):NORMALIZED. //vector with magnitude 1 from impact to launchpad
-			SET launchPadAngle TO MAX(VANG(launchPad:POSITION, geoImpact():POSITION), 15) + targetDist/70. //angle between vector to impact point and vector to launchpad. Scaled by impact distance from launchpad
+			SET launchPadVect TO (launchPad:POSITION - ADDONS:TR:IMPACTPOS:POSITION):NORMALIZED. //vector with magnitude 1 from impact to launchpad
+			SET launchPadAngle TO MAX(VANG(launchPad:POSITION, ADDONS:TR:IMPACTPOS:POSITION), 15) + targetDist/70. //angle between vector to impact point and vector to launchpad. Scaled by impact distance from launchpad
 			PRINT "launchPadAngle: " + launchPadAngle at(0,7).
 			SET steeringVect TO shipProVec * 40. //velocity vector lengthened
 			SET loopCount TO 0.
@@ -227,7 +227,7 @@ UNTIL stopLoop = true { //Main loop
 
 	printData2().
 	//SET steeringArrow:VEC TO HEADING(steeringDir,steeringPitch):VECTOR.
-	//SET steeringArrow:VEC TO launchPad:POSITION - geoImpact():POSITION.
+	//SET steeringArrow:VEC TO launchPad:POSITION - ADDONS:TR:IMPACTPOS:POSITION.
 	WAIT 0.01.
 }
 function printData2 {

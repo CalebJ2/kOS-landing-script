@@ -9,14 +9,11 @@
 //SET dTargetDist TO 0.
 
 function hasImpact { // ADDONS:TR:IMPACTPOS returns a vector(lat, bool hasImpact, lng)
-	if ADDONS:TR:IMPACTPOS:y = 0 {
+	if ADDONS:TR:IMPACTPOS:LAT = 0 AND ADDONS:TR:IMPACTPOS:LNG = 0 {
 		return false.
 	} else {
 		return true.
 	}
-}
-function geoImpact { //Get impact position. Check hasImpact() first.
-	return LATLNG(ADDONS:TR:IMPACTPOS:x, ADDONS:TR:IMPACTPOS:z).
 }
 function cardVel {
 	//Convert velocity vectors relative to SOI into easting and northing.
