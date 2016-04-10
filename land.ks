@@ -7,8 +7,15 @@ ON AG2 {
 	SET updateSettings TO true.
 }
 
-RUN land_lib.ks. //Includes the function library
 CLEARSCREEN.
+if addons:tr:available() = false {
+	print "Trajectories mod is not installed or is the wrong version." at(0,8).
+	print "Script will fail, but you may press 1 to launch anyway." at(0,9).
+} else {
+	print "Press 1 to launch." at(0,9).
+}
+print "Press 1 to launch." at(0,9).
+RUN land_lib.ks. //Includes the function library
 
 SET steeringDir TO 90. //0-360, 0=north, 90=east
 SET steeringPitch TO 90. // 90 is up
@@ -28,12 +35,13 @@ SET lpArrow:VEC TO RETROGRADE:VECTOR.
 SET lpArrow:SCALE TO 7.
 SET lpArrow:COLOR TO RGB(0,0,1.0).
 
-//uncomment these and lines 204 & 205 for some debug arrows
+//uncomment these and lines 224 & 225 for some debug arrows
 //SET steeringArrow:SHOW TO true.
 //SET retroArrow:SHOW TO true.
 //SET lpArrow:SHOW TO true.
 
 if STAGE:NUMBER = 2 { STAGE. }
+set ship:control:pilotmainthrottle to 0.
 SET thrott TO 0.
 LOCK THROTTLE TO thrott.
 SAS OFF.
@@ -52,7 +60,7 @@ LOCK maxVertAcc TO SHIP:AVAILABLETHRUST / SHIP:MASS - g. //max acceleration in u
 LOCK vertAcc TO scalarProj(SHIP:SENSORS:ACC, UP:VECTOR).
 LOCK dragAcc TO g + vertAcc. //vertical acceleration due to drag. Same as g at terminal velocity
 // Burn time to reach 0 vertical velocity
-LOCK sBurnTime TO -SHIP:VERTICALSPEED / maxVertAcc.
+//LOCK sBurnTime TO -SHIP:VERTICALSPEED / maxVertAcc.
 //Distance in vacuum = Vi*t + 1/2*a*t^2
 LOCK sBurnDist TO SHIP:VERTICALSPEED^2 / (2 * (maxVertAcc + dragAcc/2)).//-SHIP:VERTICALSPEED * sBurnTime + 0.5 * -maxVertAcc * sBurnTime^2.//SHIP:VERTICALSPEED^2 / (2 * maxVertAcc). 
 
@@ -74,10 +82,12 @@ SET northPosPID:SETPOINT TO launchPad:LAT.
 WHEN runMode = 6 THEN {
 	SET thrott TO 1.
 	GEAR OFF.
+	SET updateSettings TO true.
 	WHEN STAGE:LIQUIDFUEL < 110 AND STAGE:LIQUIDFUEL > 0 THEN {
 		PRINT STAGE:LIQUIDFUEL AT(0,17).
 		SET thrott TO 0.
 		SET runMode TO 5.
+		SET updateSettings TO true.
 		WHEN runMode = 4 THEN { //When falling
 			SET updateSettings TO true.
 			SET thrott TO 0.
@@ -118,6 +128,7 @@ UNTIL stopLoop = true { //Main loop
 			LOCK STEERING TO HEADING(steeringDir,steeringPitch).
 			LOCK THROTTLE TO thrott.
 			SET updateSettings TO false.
+			CLEARSCREEN.
 		}
 		SET steeringPitch TO 90 * (30000 - SHIP:ALTITUDE) / 30000.
 	}
@@ -219,7 +230,6 @@ UNTIL stopLoop = true { //Main loop
 	//SET steeringArrow:VEC TO launchPad:POSITION - geoImpact():POSITION.
 	WAIT 0.01.
 }
-
 function printData2 {
 	PRINT "runMode: " + runMode AT(0,1).
 	PRINT "radar: " + ROUND(radar, 4) AT(0,2).

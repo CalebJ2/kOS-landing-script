@@ -1,4 +1,3 @@
-CLEARSCREEN.
 //LOCK airDensity TO (SHIP:SENSORS:PRES * 1000) / (287.058 * SHIP:SENSORS:TEMP). // estimate in kg/m^3
 // LOCK vertAcc TO scalarProj(SHIP:SENSORS:ACC, UP:VECTOR).
 // LOCK dragAcc TO g + vertAcc.
@@ -51,7 +50,7 @@ function terrainHeight { //GEOPOSITION:TERRAINHEIGHT doesn't see water
 function geoDistance { //Approx in meters
 	parameter geo1.
 	parameter geo2.
-	return SQRT((geo1:lng - geo2:lng)^2 + (geo1:lat - geo2:lat)^2) * 10472.
+	return (geo1:POSITION - geo2:POSITION):MAG. //SQRT((geo1:lng - geo2:lng)^2 + (geo1:lat - geo2:lat)^2) * 10472.
 }
 function geoDir {
 	parameter geo1.
