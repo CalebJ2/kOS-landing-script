@@ -47,9 +47,9 @@ LOCK THROTTLE TO thrott.
 SAS OFF.
 RCS OFF.
 
-LOCK radar TO terrainHeight().
-SET radarOffset TO 8.
-SET launchPad TO LATLNG(-0.0972077635067718, -74.5576726244574).
+LOCK radar TO terrainDist().
+SET radarOffset TO 8.//ship:altitude - radar. //rocket should be on ground at this point
+SET launchPad TO SHIP:GEOPOSITION.//LATLNG(-0.0972077635067718, -74.5576726244574).
 LOCK targetDist TO geoDistance(launchPad, ADDONS:TR:IMPACTPOS).
 LOCK targetDir TO geoDir(ADDONS:TR:IMPACTPOS, launchPad).
 SET cardVelCached TO cardVel().
@@ -91,11 +91,14 @@ WHEN runMode = 6 THEN {
 		WHEN runMode = 4 THEN { //When falling
 			SET updateSettings TO true.
 			SET thrott TO 0.
-			WHEN sBurnDist > SHIP:ALTITUDE - 90 AND SHIP:VERTICALSPEED < -5 THEN {//When there is barely enough time to stop before reaching altitude 90.
+			WHEN sBurnDist > radar - radarOffset -15 AND SHIP:VERTICALSPEED < -5 THEN {//When there is barely enough time to stop before reaching altitude 90.
+				//LOG "burn start alt: " + radar TO burn.txt.
+				//LOG "burn est: " + sBurnDist TO burn.txt.
 				SET runMode TO 3.
 				SET updateSettings TO true.
 				SET thrott to 1.
 				WHEN SHIP:VERTICALSPEED > -1 THEN { //When it has stopped falling
+					//LOG "burn end alt: " + radar TO burn.txt.
 					SET runMode TO 2.
 					GEAR ON.
 					SET updateSettings TO true.
@@ -115,7 +118,6 @@ WHEN runMode = 6 THEN {
 }
 
 UNTIL stopLoop = true { //Main loop
-	SET cardVelCached TO cardVel(). //helps performance
 	if runMode = 7 {
 		if updateSettings = true {
 			UNLOCK THROTTLE.
@@ -142,7 +144,7 @@ UNTIL stopLoop = true { //Main loop
 			WAIT 2.
 			SET updateSettings TO false.
 		}
-		if hasImpact() = true { //If ship will hit ground
+		if ADDONS:TR:HASIMPACT = true { //If ship will hit ground
 			SET steeringDir TO targetDir - 180. //point towards launch pad
 			SET steeringPitch TO 0.
 			if VANG(HEADING(steeringDir,steeringPitch):VECTOR, SHIP:FACING:VECTOR) < 20 {  //wait until pointing in right direction
@@ -151,6 +153,7 @@ UNTIL stopLoop = true { //Main loop
 				SET thrott TO 0.2.
 			}
 			if targetDist > targetDistOld AND targetDist < 300 {
+				wait 0.2.
 				SET thrott TO 0.
 				SET runMode TO 4.
 			}
@@ -161,13 +164,13 @@ UNTIL stopLoop = true { //Main loop
 		SET shipProVec TO (SHIP:VELOCITY:SURFACE * -1):NORMALIZED.
 		if SHIP:VERTICALSPEED < -10 {
 			SET launchPadVect TO (launchPad:POSITION - ADDONS:TR:IMPACTPOS:POSITION):NORMALIZED. //vector with magnitude 1 from impact to launchpad
-			SET launchPadAngle TO MAX(VANG(launchPad:POSITION, ADDONS:TR:IMPACTPOS:POSITION), 15) + targetDist/70. //angle between vector to impact point and vector to launchpad. Scaled by impact distance from launchpad
-			PRINT "launchPadAngle: " + launchPadAngle at(0,7).
+			SET rotateBy TO MIN(targetDist*2, 15). //how many degrees to rotate the steeringVect
+			PRINT "rotateBy: " + rotateBy at(0,7).
 			SET steeringVect TO shipProVec * 40. //velocity vector lengthened
 			SET loopCount TO 0.
-			UNTIL (launchPadAngle - VANG(steeringVect, shipProVec)) < 3 { //until steeringVect gets close to desired angle
+			UNTIL (rotateBy - VANG(steeringVect, shipProVec)) < 3 { //until steeringVect gets close to desired angle
 				PRINT "entered loop" at(0,9).
-				if VANG(steeringVect, shipProVec) > launchPadAngle { //stop from overshooting
+				if VANG(steeringVect, shipProVec) > rotateBy { //stop from overshooting
 					PRINT "broke loop" at(0,9).
 					BREAK.
 				}
@@ -187,7 +190,7 @@ UNTIL stopLoop = true { //Main loop
 			LOCK STEERING TO (shipProVec):DIRECTION.
 		}
 	}
-	if runMode = 3 {//runmode 3 mainly handled by WHEN on line ~38
+	if runMode = 3 {//Suicide burn. Mainly handled by WHEN on line ~38
 		if updateSettings = true {
 			SET eastVelPID:MINOUTPUT TO -5.
 			SET eastVelPID:MAXOUTPUT TO 5.
@@ -198,7 +201,7 @@ UNTIL stopLoop = true { //Main loop
 			LOCK STEERING TO HEADING(steeringDir,steeringPitch).
 			SET updateSettings TO false.
 		}
-		
+		SET cardVelCached TO cardVel().
 		steeringPIDs().
 	}
 	if runMode = 2 { //Powered flight to launch pad
@@ -211,13 +214,16 @@ UNTIL stopLoop = true { //Main loop
 			SET northVelPID:MAXOUTPUT TO 35.
 			SET updateSettings TO false.
 		}
+		SET cardVelCached TO cardVel().
 		SET climbPID:SETPOINT TO hoverPID:UPDATE(TIME:SECONDS, SHIP:ALTITUDE). //lower ship down while flying to launch pad
 		SET thrott TO climbPID:UPDATE(TIME:SECONDS, SHIP:VERTICALSPEED).
 		steeringPIDs().
 	}
 	if runMode = 1 { //Final landing
+		SET cardVelCached TO cardVel().
 		steeringPIDs().
-		SET climbPID:SETPOINT TO -MAX(radar/3, 2).
+		SET climbPID:SETPOINT TO MAX(radar - radarOffset, 1.5) * -1.
+		PRINT "climbPID:SETPOINT: " + climbPID:SETPOINT at(0,8).
 		SET thrott TO climbPID:UPDATE(TIME:SECONDS, SHIP:VERTICALSPEED).
 	}
 	if runMode = 0 {
@@ -237,5 +243,5 @@ function printData2 {
 	PRINT "sBurnDist: " + ROUND(sBurnDist, 4) AT(0,3).
 	PRINT "Vertical speed target: " + ROUND(climbPID:SETPOINT, 4) AT(0,4).
 	PRINT "VERTICALSPEED: " + ROUND(SHIP:VERTICALSPEED, 4) AT(0,5).
-	if hasImpact() = true { PRINT "Impact point dist from pad: " + ROUND(targetDist,4) at(0,6). }
+	if ADDONS:TR:HASIMPACT = true { PRINT "Impact point dist from pad: " + ROUND(targetDist,4) at(0,6). }
 }
